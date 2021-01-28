@@ -1,0 +1,351 @@
+---
+title: "Birds Collision With Planes"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: flatly
+    orientation: rows
+    source_code: embed
+---
+
+
+<style type="text/css">
+    
+    @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@300;400;500;600;700&display=swap');
+
+body{
+    font-family: 'IBM Plex Serif', serif;
+}
+
+</style>
+
+
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(fig.showtext=TRUE, fig.retina = 1,
+                      dpi = 300)
+
+library(flexdashboard)
+library(echarts4r)
+library(tidyverse)
+library(ggchicklet)
+library(lubridate)
+library(showtext)
+library(ggsci)
+library(scico)
+
+
+font_add_google("IBM Plex Serif","IBM Plex Serif")
+
+
+bird_impacts <- readr::read_csv(here::here("data/wildlife_impacts.csv"))
+
+birds <- bird_impacts %>%
+    mutate(incident_month = month(ymd(incident_date),label = TRUE))
+
+```
+
+
+
+Sidebar {.sidebar}
+===========================================================================
+
+This data collected from the [FAA (Federal Aviation Administration) Wildlife Strike Database](https://wildlife.faa.gov/) which contains records of reported wildlife (Birds) strikes since 1990. Strike reporting is voluntary. 
+
+Therefore, this database only represents the information we have received from airlines, airports, pilots, and other sources like Report on wildlife impacts. And this data is just for the big 4: American Airlines, Delta, Southwest, and United as they account for [almost 70% of passengers](https://en.wikipedia.org/wiki/List_of_largest_airlines_in_North_America) in the USA but there are many many more available airlines.
+
+
+Timeline {data-icon="fa-chart-line"}
+======================================================================
+
+Row {.tabset .tabset-fade}
+-----------------------------------------------------------------------
+
+### Year-Month stat
+
+```{r fig.width=10, fig.height=5.5}
+
+showtext_auto()
+
+birds %>%
+    count(incident_year, incident_month = fct_rev(incident_month)) %>%
+    ggplot(aes(x = factor(incident_year),y = incident_month))+
+    geom_tile(aes(fill = n))+
+    scale_fill_gsea()+
+    labs(x = NULL, y = NULL,
+         subtitle = "Bird's collision with airplanes from 1990 to 2018",
+         title = "Reported Wildlife collision With The Big Four USA Airlines")+
+    guides(fill = guide_colorbar(title = "Number of Strikes", title.position = "top",
+                                 barheight  = unit(1,"lines"),
+                                 barwidth = unit(20,"lines"),
+                                 title.theme = element_text(angle = 0, 
+                                                            family = "IBM Plex Serif"),
+                                 label.theme = element_text(angle = 0, 
+                                                            family = "IBM Plex Serif")
+
+
+    ))+
+    theme_minimal()+
+    theme(
+        text = element_text(family = "IBM Plex Serif"),
+        legend.position = "bottom",
+        legend.direction = "horizontal",
+        axis.ticks = element_blank(),
+        axis.text = element_text(color = "grey20", face = "plain"),
+        legend.text = element_text(color = "grey20", face = "bold",
+                                   angle = 90, vjust = 0.5, hjust = 0.5),
+        legend.title = element_text(angle = 90, hjust = 0.5, vjust = 0.5),
+        plot.subtitle = element_text(size = 12, color = "grey20"),
+        plot.title = element_text(size = 15, face = "bold"),
+    )
+
+
+```
+
+
+### Collision-Timeline
+
+```{r fig.width=9.5, fig.height=5.5}
+
+e_common(
+  font_family = "IBM Plex Serif"
+)
+
+year_total <- birds %>%
+    count(incident_year,name = "Collision") %>% 
+    mutate(
+    yr = as.character(as.integer(incident_year))
+  )
+year_total %>% 
+  e_charts(x = yr) %>% 
+  e_line(Collision) %>% 
+  e_title("Year-wise Total Bird Strike incidents From 1990 to 2018") %>% 
+  e_theme("infographic") %>% 
+  e_legend(right = 0) %>% 
+  e_x_axis(axisTick = list(show=FALSE)) %>% 
+  e_tooltip(
+    axisPointer = list(
+      type = "cross"
+    )
+  )  
+  
+```
+
+
+### Collision-Timeline for each Airlines
+
+```{r fig.width=9.5, fig.height=5.5}
+
+year_op <- birds %>% 
+  count(operator, incident_year) %>% 
+  mutate(
+    yr = as.character(as.integer(incident_year))
+  )
+  
+year_op %>% 
+  group_by(operator) %>% 
+  e_charts(x = yr) %>% 
+  e_line(serie = n) %>% 
+  e_title("Year-wise Bird Strike incidents for Each Airlines") %>% 
+  e_theme("infographic") %>% 
+  e_legend(right = 0) %>% 
+  e_x_axis(axisTick = list(show=FALSE)) %>% 
+  e_tooltip(trigger = "axis")  
+
+
+
+```
+
+
+
+Stats {data-icon="fas fa-chart-bar" data-orientation=columns}
+=======================================================================
+
+Column
+-----------------------------------------------------------------------
+
+### Total Number of Bird Strike Incidents
+
+```{r fig.width=6, fig.height=4}
+
+showtext_auto()
+
+birds %>%
+    count(operator)%>% drop_na() %>%
+    mutate(operator = fct_reorder(operator,n)) %>%
+    ggplot(aes(operator,n, fill = operator))+
+    geom_col()+
+    scale_fill_scico_d(palette = "devon", direction = -1,begin=0.2, end = 0.5)+
+    scale_x_discrete(labels = scales::label_wrap(10))+
+    theme_minimal()+
+    coord_flip()+
+    theme(legend.position = "none",
+          text = element_text(family = "IBM Plex Serif")
+          )+
+    labs(x = NULL, y = NULL,
+         title = "Which Airlines Faced Most Birds Collision"
+         )
+
+
+```
+
+
+Column
+-----------------------------------------------------------------------
+
+### Proportion of Damage-Level Specific incidents
+
+```{r fig.width=6, fig.height=4}
+
+showtext_auto()
+
+birds %>%
+    count(operator,damage) %>% drop_na() %>% filter(!damage == "N") %>%
+    # mutate(damage = factor(damage, levels = c("M", "M"))) %>%
+    ggplot(aes(operator, n, fill = fct_rev(damage)))+
+    geom_chicklet(position = "fill")+
+    scale_fill_manual(values = c("S" = "#800503", "M" = "#010c5e", "M?" = "#3d3737"),
+                      labels = c("M" = "Minor", "M?" = "Uncertain", 
+                                 "S" = "Substantial"),
+                      name = "Damage level",)+
+    guides(fill = guide_legend(title.position = "top", 
+                               label.hjust = 0.5,
+                               keywidth=unit(3.5, "lines"),
+                               reverse = TRUE))+
+    scale_x_discrete(labels = scales::label_wrap(10))+
+    coord_flip()+
+    labs(y = "Proportion", x = NULL,
+         title = str_wrap("Which Airlines Faced Most Collision incidents that were Substantially-Damaged", width = 50))+
+    theme_minimal()+
+    theme(
+        text = element_text(family = "IBM Plex Serif"),
+        legend.position = "bottom",
+        legend.spacing.x = unit(0.9,"lines"))
+
+
+
+```
+
+
+
+More Info {data-icon="fa-th" data-orientation=rows}
+=========================================================
+
+Row{.tabset .tabset-fade}
+-----------------------------------------------------------------------
+
+### Phase of Flight
+
+```{r }
+
+df <- birds %>%
+    mutate(phase_of_flt = case_when(
+        phase_of_flt %in%  c("TAKE-OFF RUN","Take-off run","take-off run","Take-off Run")~"Take-off Run",
+        phase_of_flt %in% c("Landing Roll","landing roll","LANDING ROLL","Landing roll")~"Landing Roll",
+        phase_of_flt %in% c("DEPARTURE")~"Departure",
+        phase_of_flt %in% c("CLIMB","climb")~"Climb",
+        phase_of_flt %in% c("ARRIVAL")~"Arrival",
+        phase_of_flt %in% c("approach","APPROACH")~"Approach",
+        TRUE~phase_of_flt)
+    ) %>%
+    filter(!phase_of_flt %in% c("Unknown",NA) )
+
+
+showtext_auto()
+
+df %>%
+    count(operator, phase_of_flt) %>%
+    mutate(operator = str_to_title(operator),
+           operator = str_replace(operator," ","\n")) %>%
+    ggplot(aes(operator, phase_of_flt))+
+    geom_raster(aes(fill = n), interpolate = TRUE)+
+    scale_fill_gradient2(low = "#04bfd4", high = "#FF3200",mid = "#faec82", midpoint = 4000)+
+    guides(fill = guide_colorbar(title = "Number of Strikes", title.position = "top",
+                                 barheight  = unit(1,"lines"),
+                                 barwidth = unit(15, "lines"),
+                                 label.position = "bottom" ),
+                                 title.theme = element_text(angle = 0, 
+                                                            family = "IBM Plex Serif"),
+                                 label.theme = element_text(angle = 0, 
+                                                            family = "IBM Plex Serif")
+           )+
+    theme_minimal()+
+    labs(y = NULL, x = NULL,
+         title = str_wrap("In Which Flight-state planes are most likely to Collide with birds ?!", width = 50))+
+    theme(legend.position = "bottom",
+          legend.direction = "horizontal",
+          text = element_text(family = "IBM Plex Serif")
+          )
+
+```
+
+
+### Sky and Day-Time
+
+```{r }
+con <- birds %>% 
+  count(operator, time_of_day, sky) %>% filter(!is.na(time_of_day) & !is.na(sky))
+
+
+showtext_auto()
+
+con %>% ggplot(aes(x = time_of_day,y = sky, fill = n))+
+  geom_tile()+
+  guides(fill = guide_colorbar(title = "Number of Strikes", title.position = "top",
+                                 barheight  = unit(1,"lines"),
+                                 barwidth = unit(15,"lines"),
+                                 title.theme = element_text(angle = 0, 
+                                                            family = "IBM Plex Serif"),
+                                 label.theme = element_text(angle = 0, 
+                                                            family = "IBM Plex Serif")
+
+
+    ))+
+  labs(
+    x=NULL, y = NULL,
+    title=str_wrap("In which Sky Condition and when of the Day-time Planes Collided with Birds Mostly ?!", width = 50)
+  )+
+  ggthemes::scale_fill_gradient_tableau(palette = "Classic Red", )+
+  facet_wrap(~operator)+
+  theme_minimal() +
+  theme(
+    text = element_text(family = "IBM Plex Serif"),
+    legend.position = "bottom",
+    legend.direction = "horizontal"
+  )
+
+
+```
+
+
+### Speed and Height
+
+```{r}
+
+pts <- birds %>% 
+    drop_na(speed, height) %>% 
+  select(height, speed, operator)
+
+pts %>% 
+  group_by(operator) %>% 
+  e_charts(height) %>% 
+  e_scatter(speed, bind = operator,
+            scale=NULL, symbol_size = 7) %>%
+  e_tooltip(
+    formatter = htmlwidgets::JS("
+      function(params){
+        return('<strong>' + params.name + 
+                '</strong><br />Height: ' + params.value[0] + 
+                '<br />Speed: ' + params.value[1]) 
+                }
+    ")
+  ) %>% 
+  e_axis_labels(
+    x = "Height at Impact",
+    y = "Speed at Impact"
+  ) %>% 
+  e_title("Most of the Collision happened at low speed and height") %>% 
+  e_theme("infographic") %>% 
+  e_legend(right = 0)
+
+```

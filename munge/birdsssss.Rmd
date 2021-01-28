@@ -1,0 +1,328 @@
+---
+title: "Exploring Data"
+author: "Shafayetshafee"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r packages}
+library(tidyverse)
+library(ggchicklet)
+library(ggridges)
+library(lubridate)
+library(showtext)
+library(LaCroixColoR)
+library(wesanderson)
+library(ggsci)
+library(scico)
+```
+
+
+```{r data}
+bird_impacts <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-07-23/wildlife_impacts.csv")
+
+
+birds <- bird_impacts %>% 
+  mutate(incident_month = month(ymd(incident_date),label = TRUE))
+```
+
+
+### Top species 
+
+```{r}
+birds %>% 
+  count(species, sort = TRUE)
+
+birds %>% 
+  count(time_of_day, sort = TRUE) %>% drop_na()
+
+birds %>% 
+  count(time_of_day,phase_of_flt, sort = T) %>% drop_na()
+
+birds %>% count(operator, sort = T)
+
+birds %>% 
+  count(operator, damage) %>%  filter(damage == "N") %>% arrange(desc(n))
+
+
+con <- birds %>% 
+  count(operator, time_of_day, sky) %>% filter(!is.na(time_of_day) & !is.na(sky))
+
+con %>% ggplot(aes(x = time_of_day,y = sky, fill = n))+
+  geom_tile()+
+  scale_fill_gradientn(colors = heat.colors(2))+
+  facet_wrap(~operator)+
+  theme_minimal()
+
+
+birds %>% 
+  ggplot(aes(height))+
+  geom_histogram()+
+  facet_wrap(~operator, scales = "free")
+```
+
+
+
+
+```{r year-month-incident}
+birds %>% 
+  count(incident_year, incident_month, time_of_day) %>% drop_na(time_of_day) %>% view()
+
+birds %>% 
+  count(incident_year, incident_month = fct_rev(incident_month)) %>%  
+  ggplot(aes(x = factor(incident_year),y = incident_month))+
+  geom_tile(aes(fill = n))+
+  scale_fill_gsea()+
+  labs(x = NULL, y = "")+
+  guides(fill = guide_colorbar(title = "Number of Strikes", title.position = "bottom",
+                              barwidth = unit(15,"lines"),
+                             label.position = "top" ))+
+  theme_minimal()+
+  theme(legend.position = "bottom",
+        axis.ticks = element_blank())
+```
+
+
+```{r}
+birds %>% 
+  count(operator,damage) %>% drop_na() %>% filter(!damage == "N") %>% 
+  # mutate(damage = factor(damage, levels = c("M", "M"))) %>%
+  ggplot(aes(operator, n, fill = fct_rev(damage)))+
+  geom_chicklet(position = "fill")+
+  scale_fill_manual(values = c("S" = "#800503", "M" = "#010c5e", "M?" = "#3d3737"),
+                    labels = c("M" = "Minor", "M?" = "Uncertain", "S" = "Substantial"),
+                    name = "Damage level")+
+  guides(fill = guide_legend(title.position = "top", label.hjust = 0.5))+
+  coord_flip()+
+  labs(y = NULL, x = NULL)+
+  theme_minimal()+
+  theme(legend.position = "bottom",
+        legend.spacing.x = unit(0.9,"lines"))
+
+birds %>% 
+   count(operator)%>% drop_na() %>% 
+  mutate(operator = fct_reorder(operator,n)) %>%  
+  ggplot(aes(operator,n, fill = operator))+
+  geom_col()+
+  scale_fill_scico_d(palette = "devon", direction = -1,begin=0.2, end = 0.5)+
+  coord_flip()+
+  theme_minimal()+
+  theme(legend.position = "none",
+        axis.text =element_text(color = "grey20", face = "bold"))+
+  labs(x = NULL, y = "Number of times the Airlines faced birds strike")
+
+con <- birds %>% 
+  count(operator, time_of_day, sky) %>% filter(!is.na(time_of_day) & !is.na(sky))
+
+con %>% ggplot(aes(time_of_day,sky, fill = n))+
+  geom_tile()+
+  scale_fill_viridis_c(option = "plasma", end =0.95)+
+  #scale_fill_gradientn(colors =wes_palette("Zissou1", 10, type = "continuous"))+
+  guides(fill = guide_colorbar(title = "Number of Strikes", title.position = "bottom",
+                              barwidth = unit(12,"lines"),
+                              label.position = "top"))+
+  facet_wrap(~operator, nrow = 2)+
+  theme_minimal()+
+  labs(y = " ", x = "")+
+  theme(legend.position = "bottom",
+        axis.ticks = element_blank())
+
+
+df %>% 
+  count(operator, phase_of_flt) %>% 
+  ungroup() %>% 
+  ggplot(aes(operator, phase_of_flt))+
+  geom_raster(aes(fill = n),interpolate = T)+
+ # scale_fill_gsea()
+  scale_fill_gradient2(low = "#04bfd4", high = "#FF3200",mid = "#faec82", midpoint = 4000)+
+  guides(fill = guide_colorbar(title = "Number of Strikes", title.position = "bottom",
+                              barwidth = unit(14,"lines"),
+                              label.position = "top"))+
+  theme_minimal()+
+  labs(x = NULL, y = "")+
+  theme(legend.position = "bottom",
+        axis.ticks = element_blank(),
+        panel.grid = element_blank())
+  
+  
+
+df <- birds %>% 
+  mutate(phase_of_flt = case_when(
+    phase_of_flt %in%  c("TAKE-OFF RUN","Take-off run","take-off run","Take-off Run")~"Take-off Run",
+    phase_of_flt %in% c("Landing Roll","landing roll","LANDING ROLL","Landing roll")~"Landing Roll",
+    phase_of_flt %in% c("DEPARTURE")~"Departure",
+    phase_of_flt %in% c("CLIMB","climb")~"Climb",
+    phase_of_flt %in% c("ARRIVAL")~"Arrival",
+    phase_of_flt %in% c("approach","APPROACH")~"Approach",
+    TRUE~phase_of_flt) 
+    ) %>% 
+  filter(!phase_of_flt %in% c("Unknown",NA) )
+```
+
+
+```{r 10 year freq bird}
+
+top5 <- function(x){
+  return(birds %>% 
+  filter(!(species == str_extract_all(species,"^(Unknown)[[a-z],\\s,-]+")) & incident_year == x) %>%    count(species) %>% 
+  top_n(5, wt = n) %>% pull(species))
+}
+
+topc <- Vectorize(top5)
+topc(c(2000,2001,2002))
+
+bird2001 <- birds %>% 
+  filter(species %in% topc(2001)  & incident_year == 2001) %>% 
+  count(incident_year,incident_month, species)
+
+for (i in 2002:2018) {
+  data <- birds %>% 
+  filter(species %in% topc(i)  & incident_year == i) %>% 
+  count(incident_year,incident_month, species)
+  
+  bird2001 <- bind_rows(bird2001,data)
+}
+
+#png("R4DS_daily_activity.png", width = 1650, height = 1650, res = 144, bg = "transparent")
+
+bird2001 %>% 
+  filter(incident_year > 2014) %>% 
+  ggplot(aes(x = incident_month, y = n))+
+  geom_line(size = 1,aes(color = species, group = species))+
+  geom_point(pch = 21, aes(color = species, fill = species), size = 4)+
+  scale_color_manual(values = c(
+    "Barn swallow" = "#fc3b19","Mourning dove" = "#2b48ff", # red and blue
+    "Horned lark" = "#480080", "Cliff swallow" = "#49a315", # violet and dark green
+    "American kestrel" = "#3ad9fc", "Perching birds (y)" = "#4d5557", # light blue and dark grey
+    "Killdeer" = "#ed2176", "Chimney swift" = "#8cfc14", # pink and light green
+    "European starling" = "#520100", "Brazilian free-tailed bat" = "#fbff0f" # orange and yellow
+    ))+
+  scale_fill_manual(values = c(
+    "Barn swallow" = "#fc3b19","Mourning dove" = "#2b48ff", # red and blue
+    "Horned lark" = "#480080", "Cliff swallow" = "#49a315", # violet and dark green
+    "American kestrel" = "#3ad9fc", "Perching birds (y)" = "#4d5557", # light blue and dark grey
+    "Killdeer" = "#ed2176", "Chimney swift" = "#8cfc14", # pink and light green
+    "European starling" = "#520100", "Brazilian free-tailed bat" = "#fbff0f" # orange and yellow
+    ))+
+  guides(fill = guide_legend(title.position = "top"), color = guide_legend(title.position = "top"))+
+  facet_wrap(~incident_year, scales = "free")+
+  theme_minimal()+
+  labs(x = NULL, y = NULL)+
+  theme(legend.position = "bottom",
+        panel.grid.minor.y = element_blank(),
+        #panel.grid.major.y = element_blank(),
+       panel.spacing = unit(1,"lines")
+        )
+```
+
+
+
+```{r}
+top <- birds %>% 
+  count(species,sort = T) %>% 
+  filter(!(species == str_extract_all(species,"^(Unknown)[[a-z],\\s,-]+"))) %>% 
+  top_n(15) %>% pull(species)
+
+topB <-  birds %>% 
+  count(species,sort = T) %>% 
+  filter(!(species == str_extract_all(species,"^(Unknown)[[a-z],\\s,-]+"))) %>% 
+  top_n(15)
+
+data <- birds %>% 
+  filter(species %in% top & !(species == str_extract_all(species,"^(Unknown)[[a-z],\\s,-]+")))
+
+final <- left_join(data,topB, by = "species")
+
+birds %>% 
+  filter(species %in% top)
+
+final%>% 
+  mutate(species = fct_reorder(species,n)) %>% 
+  ggplot()+
+ geom_jitter(aes(x = species, y = height, color = n), width = 0.25)+
+  scale_color_viridis_c()
+
+birds %>% 
+  filter(height >= 5000 & !(species == str_extract_all(species,"^(Unknown)[[a-z],\\s,-]+"))) %>% 
+  count(species, sort = TRUE)
+
+
+birds %>% 
+  filter(height >= 5000 & !(species == str_extract_all(species,"^(Unknown)[[a-z],\\s,-]+"))) %>% 
+  ggplot()+
+ geom_jitter(aes(x = species, y = height))
+
+
+birds %>% 
+  filter(!(species == str_extract_all(species,"^(Unknown)[[a-z],\\s,-]+"))) %>% 
+  pull(height) %>% summary(.)
+
+birds %>% 
+  filter(incident_year == 2018 & !(species == str_extract_all(species,"^(Unknown)[[a-z],\\s,-]+"))) %>% 
+  count(species) %>% 
+  top_n(5)
+```
+
+
+
+
+
+
+
+
+
+###### scrape
+
+
+
+```{r}
+windows()
+con %>% ggplot(aes(x = time_of_day,y = sky, fill = n))+
+  geom_tile()+
+  scale_fill_scico(palette = 'davos', begin = 0.1,end = 0.9)+
+  facet_wrap(~operator)+
+  theme_minimal()
+
+
+
+
+birds %>%
+    filter(!damage %in%  c( NA)) %>%
+    drop_na(height) %>%
+    ggplot(aes(damage,height)) +
+    geom_jitter()
+
+
+
+
+
+birds %>%
+    filter(!damage %in%  c( NA)) %>%
+    ggplot(aes(x = speed, y = damage, fill = -..x..))+
+    geom_density_ridges_gradient(scale = 1, rel_min_height = 0.01,
+                                 show.legend = F,
+                                 quantile_lines = TRUE, quantiles = 2)
+
+
+
+# hchart(pts, "point", hcaes(x = height, y=speed, group = operator)) %>%
+#   hc_yAxis(
+#     title = list(text = "Speed At Impact")
+#   ) %>%
+#   hc_xAxis(
+#     title = list(text="Height At Impact")
+#   )
+#   hc_title(text = "Most of the Collision happened<br>at low speed and height") %>%
+#   hc_tooltip(sort = TRUE, table = TRUE) %>%
+#   hc_theme_538()
+
+
+```
+
+
+
+
