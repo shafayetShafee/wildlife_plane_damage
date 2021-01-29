@@ -63,7 +63,7 @@ Row {.tabset .tabset-fade}
 
 ### Year-Month stat
 
-```{r fig.width=10, fig.height=5.5}
+```{r page01-tile-yearMonth, fig.width=10, fig.height=5.5}
 
 showtext_auto()
 
@@ -105,7 +105,7 @@ birds %>%
 
 ### Collision-Timeline
 
-```{r fig.width=9.5, fig.height=5.5}
+```{r page01-line-total, fig.width=9.5, fig.height=5.5}
 
 e_common(
   font_family = "IBM Plex Serif"
@@ -134,7 +134,7 @@ year_total %>%
 
 ### Collision-Timeline for each Airlines
 
-```{r fig.width=9.5, fig.height=5.5}
+```{r page01-line-operator, fig.width=9.5, fig.height=5.5}
 
 year_op <- birds %>% 
   count(operator, incident_year) %>% 
@@ -166,7 +166,7 @@ Column
 
 ### Total Number of Bird Strike Incidents
 
-```{r fig.width=6, fig.height=4}
+```{r page02-bar-total, fig.width=6, fig.height=4}
 
 showtext_auto()
 
@@ -174,7 +174,7 @@ birds %>%
     count(operator)%>% drop_na() %>%
     mutate(operator = fct_reorder(operator,n)) %>%
     ggplot(aes(operator,n, fill = operator))+
-    geom_col()+
+    geom_chicklet()+
     scale_fill_scico_d(palette = "devon", direction = -1,begin=0.2, end = 0.5)+
     scale_x_discrete(labels = scales::label_wrap(10))+
     theme_minimal()+
@@ -195,7 +195,7 @@ Column
 
 ### Proportion of Damage-Level Specific incidents
 
-```{r fig.width=6, fig.height=4}
+```{r page02-bar-operator, fig.width=6, fig.height=4}
 
 showtext_auto()
 
@@ -236,7 +236,7 @@ Row{.tabset .tabset-fade}
 
 ### Phase of Flight
 
-```{r }
+```{r page03-tile-phaseFlight}
 
 df <- birds %>%
     mutate(phase_of_flt = case_when(
@@ -282,7 +282,7 @@ df %>%
 
 ### Sky and Day-Time
 
-```{r }
+```{r page03-sky-daytime}
 con <- birds %>% 
   count(operator, time_of_day, sky) %>% filter(!is.na(time_of_day) & !is.na(sky))
 
@@ -320,7 +320,7 @@ con %>% ggplot(aes(x = time_of_day,y = sky, fill = n))+
 
 ### Speed and Height
 
-```{r}
+```{r page03-speed-height-scatter}
 
 pts <- birds %>% 
     drop_na(speed, height) %>% 
@@ -344,8 +344,8 @@ pts %>%
     x = "Height at Impact",
     y = "Speed at Impact"
   ) %>% 
-  e_title("Most of the Collision happened at low speed and height") %>% 
+  e_title("Most of the Collision happened at low height ??") %>% 
   e_theme("infographic") %>% 
-  e_legend(right = 0)
+  e_legend(right = 0, bottom = 0)
 
 ```
